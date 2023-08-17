@@ -321,6 +321,19 @@ impl<T: Default> LinkedList<T> {
       Some(&back.as_ref().value)
     }
   }
+
+  pub fn get(&self, n: usize) -> Option<&T> {
+    if n >= self.len {
+      return None;
+    }
+    unsafe {
+      let mut location = self.head.as_ref().next.unwrap();
+      for _ in 0..n {
+        location = location.as_ref().next.unwrap();
+      }
+      Some(&location.as_ref().value)
+    }
+  }
 }
 
 impl<T: Default> LinkedList<T> {
@@ -341,6 +354,19 @@ impl<T: Default> LinkedList<T> {
     unsafe {
       let back = &mut self.tail.as_mut().prev.unwrap();
       Some(&mut back.as_mut().value)
+    }
+  }
+
+  pub fn get_mut(&mut self, n: usize) -> Option<&mut T> {
+    if n >= self.len {
+      return None;
+    }
+    unsafe {
+      let mut location = self.head.as_mut().next.unwrap();
+      for _ in 0..n {
+        location = location.as_mut().next.unwrap();
+      }
+      Some(&mut location.as_mut().value)
     }
   }
 }
@@ -395,6 +421,16 @@ mod test_linked_list {
       collected.push(list.pop_front().unwrap());
     }
     assert_eq!(collected, [4, 2, 1, 1, 2, 4]);
+  }
+
+  #[test]
+  fn get_element_and_change_it() {
+    let mut list = LinkedList::from_iter([3, 2, 1, 1, 2, 3]);
+    *list.get_mut(1).unwrap() = 4;
+    *list.get_mut(2).unwrap() = 5;
+    for (i, e) in (0..list.len()).zip([3, 4, 5, 1, 2, 3]) {
+      assert_eq!(*list.get(i).unwrap(), e);
+    }
   }
 
   #[test]
