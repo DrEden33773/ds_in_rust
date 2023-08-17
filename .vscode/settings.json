@@ -1,0 +1,5 @@
+{
+  "editor.tabSize": 2,
+  "rust-analyzer.check.command": "clippy",
+  "cSpell.words": ["dealloc", "nonoverlapping", "realloc"]
+}
