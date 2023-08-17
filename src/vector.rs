@@ -207,7 +207,7 @@ impl<T> Vector<T> {
     self.len = 0;
   }
 
-  pub fn clear_to_zeroed_heap(&mut self) {
+  pub fn clear_into_zeroed_heap(&mut self) {
     self.len = 0;
     self.shrink();
   }
@@ -347,7 +347,7 @@ mod test_vector {
     vec.push(1);
     assert_eq!(vec.capacity(), INIT_CAPACITY);
     assert_eq!(vec.len(), 1);
-    vec.clear_to_zeroed_heap();
+    vec.clear_into_zeroed_heap();
     assert_eq!(vec.capacity(), 0);
     assert_eq!(vec.len(), 0);
     drop(vec);
