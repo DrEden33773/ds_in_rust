@@ -1,14 +1,77 @@
-use std::ptr::NonNull;
+use std::{
+  fmt::{Debug, Display},
+  ptr::NonNull,
+};
 
 const INIT_CAPACITY: usize = 8;
 const EXPAND_FACTOR: usize = 2;
 
 pub mod iter;
 
+#[derive(Debug)]
 pub struct Vector<T> {
   data: NonNull<T>,
   len: usize,
   capacity: usize,
+}
+
+impl<T: PartialOrd> PartialOrd for Vector<T> {
+  fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    if self.len != other.len {
+      return self.len.partial_cmp(&other.len);
+    }
+    for (l, r) in self.iter().zip(other.iter()) {
+      match l.partial_cmp(r) {
+        Some(std::cmp::Ordering::Equal) => continue,
+        x => return x,
+      }
+    }
+    Some(std::cmp::Ordering::Equal)
+  }
+}
+
+impl<T: Ord> Ord for Vector<T> {
+  fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    if self.len != other.len {
+      return self.len.cmp(&other.len);
+    }
+    for (l, r) in self.iter().zip(other.iter()) {
+      match l.cmp(r) {
+        std::cmp::Ordering::Equal => continue,
+        x => return x,
+      }
+    }
+    std::cmp::Ordering::Equal
+  }
+}
+
+impl<T: PartialEq> PartialEq for Vector<T> {
+  fn eq(&self, other: &Self) -> bool {
+    if self.len != other.len {
+      return false;
+    }
+    for (l, r) in self.iter().zip(other.iter()) {
+      if l != r {
+        return false;
+      }
+    }
+    true
+  }
+}
+
+impl<T: Eq> Eq for Vector<T> {}
+
+impl<T: Display> Display for Vector<T> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "[")?;
+    for (i, e) in self.iter().enumerate() {
+      write!(f, "{}", e)?;
+      if i < self.len - 1 {
+        write!(f, ", ")?;
+      }
+    }
+    write!(f, "]")
+  }
 }
 
 impl<T> std::ops::Index<usize> for Vector<T> {
@@ -142,6 +205,10 @@ impl<T> Vector<T> {
 
   pub fn clear(&mut self) {
     self.len = 0;
+  }
+
+  pub fn clear_to_zeroed_heap(&mut self) {
+    self.len = 0;
     self.shrink();
   }
 }
@@ -262,5 +329,27 @@ mod test_vector {
     let mut vec = Vector::<()>::with_capacity(0);
     assert_eq!(vec.capacity(), 0);
     (0..8).for_each(|_| vec.push(()));
+  }
+
+  #[test]
+  fn format() {
+    let vec = Vector::from_iter([1, 2, 3, 3, 2, 1]);
+    assert_eq!(format!("{}", vec), "[1, 2, 3, 3, 2, 1]");
+  }
+
+  #[test]
+  fn clear_and_drop() {
+    let mut vec = Vector::from_iter([1, 2, 3, 3, 2, 1]);
+    assert_eq!(vec.len(), 6);
+    vec.clear();
+    assert_eq!(vec.capacity(), INIT_CAPACITY);
+    assert_eq!(vec.len(), 0);
+    vec.push(1);
+    assert_eq!(vec.capacity(), INIT_CAPACITY);
+    assert_eq!(vec.len(), 1);
+    vec.clear_to_zeroed_heap();
+    assert_eq!(vec.capacity(), 0);
+    assert_eq!(vec.len(), 0);
+    drop(vec);
   }
 }
