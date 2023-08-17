@@ -132,7 +132,7 @@ impl<T> Drop for Vector<T> {
 }
 
 impl<T> Vector<T> {
-  fn expand(&mut self) {
+  fn auto_expand(&mut self) {
     let new_capacity = if self.capacity != 0 {
       self.capacity * EXPAND_FACTOR
     } else {
@@ -147,6 +147,21 @@ impl<T> Vector<T> {
     }
     self.data = new_data;
     self.capacity = new_capacity;
+  }
+
+  pub fn reserve(&mut self, additional: usize) {
+    if self.capacity - self.len < additional {
+      let new_capacity = self.capacity + additional;
+      let layout = std::alloc::Layout::array::<T>(new_capacity).unwrap();
+      let new_ptr = unsafe { std::alloc::alloc(layout) };
+      let new_data = unsafe { NonNull::new_unchecked(new_ptr as *mut T) };
+      unsafe {
+        std::ptr::copy_nonoverlapping(self.data.as_ptr(), new_data.as_ptr(), self.len);
+        std::alloc::dealloc(self.data.as_ptr() as *mut u8, layout);
+      }
+      self.data = new_data;
+      self.capacity = new_capacity;
+    }
   }
 
   pub fn shrink(&mut self) {
@@ -165,7 +180,7 @@ impl<T> Vector<T> {
 impl<T> Vector<T> {
   pub fn push(&mut self, value: T) {
     if self.len == self.capacity {
-      self.expand();
+      self.auto_expand();
     }
     unsafe {
       std::ptr::write(self.data.as_ptr().add(self.len), value);
@@ -178,7 +193,7 @@ impl<T> Vector<T> {
       return None;
     }
     if self.len == self.capacity {
-      self.expand();
+      self.auto_expand();
     }
     let ret = unsafe { self.data.as_ptr().add(n).as_ref() };
     unsafe {
@@ -207,7 +222,7 @@ impl<T> Vector<T> {
     self.len = 0;
   }
 
-  pub fn clear_into_zeroed_heap(&mut self) {
+  pub fn complete_clear(&mut self) {
     self.len = 0;
     self.shrink();
   }
@@ -267,7 +282,7 @@ mod test_vector {
   fn drop_shrink_expand() {
     let mut vec = Vector::<()>::new();
     assert_eq!(vec.capacity, INIT_CAPACITY);
-    vec.expand();
+    vec.auto_expand();
     assert_eq!(vec.capacity, INIT_CAPACITY * EXPAND_FACTOR);
     drop(vec);
     let mut vec = Vector::<()>::new();
@@ -325,10 +340,13 @@ mod test_vector {
   }
 
   #[test]
-  fn with_capacity() {
+  fn assign_capacity() {
     let mut vec = Vector::<()>::with_capacity(0);
     assert_eq!(vec.capacity(), 0);
-    (0..8).for_each(|_| vec.push(()));
+    (0..INIT_CAPACITY).for_each(|_| vec.push(()));
+    assert_eq!(vec.capacity(), INIT_CAPACITY);
+    vec.reserve(4);
+    assert_eq!(vec.capacity(), vec.len() + 4);
   }
 
   #[test]
@@ -347,7 +365,7 @@ mod test_vector {
     vec.push(1);
     assert_eq!(vec.capacity(), INIT_CAPACITY);
     assert_eq!(vec.len(), 1);
-    vec.clear_into_zeroed_heap();
+    vec.complete_clear();
     assert_eq!(vec.capacity(), 0);
     assert_eq!(vec.len(), 0);
     drop(vec);
