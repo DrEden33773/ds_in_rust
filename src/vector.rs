@@ -15,6 +15,12 @@ pub struct Vector<T> {
   capacity: usize,
 }
 
+impl<T: Clone> Clone for Vector<T> {
+  fn clone(&self) -> Self {
+    self.iter().cloned().collect()
+  }
+}
+
 impl<T: PartialOrd> PartialOrd for Vector<T> {
   fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
     if self.len != other.len {
