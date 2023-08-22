@@ -1,6 +1,5 @@
-use std::fmt::{Debug, Display};
-
 use crate::linked_list::LinkedList;
+use std::fmt::{Debug, Display};
 
 pub mod iter;
 
