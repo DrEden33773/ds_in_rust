@@ -7,6 +7,7 @@ const INIT_CAPACITY: usize = 8;
 const EXPAND_FACTOR: usize = 2;
 
 pub mod iter;
+pub mod slice;
 
 #[derive(Debug)]
 pub struct Vector<T> {
@@ -375,5 +376,44 @@ mod test_vector {
     assert_eq!(vec.capacity(), 0);
     assert_eq!(vec.len(), 0);
     drop(vec);
+  }
+}
+
+#[cfg(test)]
+mod test_vector_slice {
+  use super::*;
+
+  #[test]
+  fn slice() {
+    let mut vec = Vector::from_iter(0..3);
+    assert_eq!(vec[0..3], [0, 1, 2]);
+    assert_eq!(vec[0..=2], [0, 1, 2]);
+    assert_eq!(vec[1..], [1, 2]);
+    assert_eq!(vec[..2], [0, 1]);
+    assert_eq!(vec[..=2], [0, 1, 2]);
+    assert_eq!(vec[..], [0, 1, 2]);
+    vec.push(3);
+    match (vec.len(), &mut vec[..]) {
+      (4, [a, b, c, d, ..]) => {
+        *a *= 1;
+        *b *= 2;
+        *c *= 3;
+        *d *= 4;
+      }
+      (3, [a, b, c, ..]) => {
+        *a *= 2;
+        *b *= 4;
+        *c *= 6;
+      }
+      _ => {}
+    }
+    assert_eq!(
+      vec[..],
+      [0, 1, 2, 3]
+        .into_iter()
+        .enumerate()
+        .map(|(i, e)| e * (i + 1))
+        .collect::<Vec<_>>()[..]
+    );
   }
 }

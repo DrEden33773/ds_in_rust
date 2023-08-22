@@ -13,6 +13,6 @@ impl<'a, T: Default> IntoIterator for &'a ListDeque<T> {
   type Item = &'a T;
   type IntoIter = Iter<'a, T>;
   fn into_iter(self) -> Self::IntoIter {
-    self.list.iter()
+    self.list.into_iter()
   }
 }
