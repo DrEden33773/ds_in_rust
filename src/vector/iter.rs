@@ -1,4 +1,5 @@
 use super::*;
+use std::marker::PhantomData;
 
 impl<T> FromIterator<T> for Vector<T> {
   fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
@@ -14,7 +15,7 @@ pub struct Iter<'a, T> {
   next_index: usize,
   prev_index: usize,
   is_head: bool,
-  marker: std::marker::PhantomData<&'a Vector<T>>,
+  marker: PhantomData<&'a Vector<T>>,
 }
 
 impl<'a, T> DoubleEndedIterator for Iter<'a, T> {
@@ -58,7 +59,7 @@ impl<'a, T> IntoIterator for &'a Vector<T> {
       next_index: 0,
       prev_index: self.len - 1,
       is_head: false,
-      marker: std::marker::PhantomData,
+      marker: PhantomData,
     }
   }
 }
@@ -69,7 +70,7 @@ pub struct IterMut<'a, T> {
   next_index: usize,
   prev_index: usize,
   is_head: bool,
-  marker: std::marker::PhantomData<&'a mut Vector<T>>,
+  marker: PhantomData<&'a mut Vector<T>>,
 }
 
 impl<'a, T> DoubleEndedIterator for IterMut<'a, T> {
@@ -113,7 +114,7 @@ impl<'a, T> IntoIterator for &'a mut Vector<T> {
       next_index: 0,
       prev_index: self.len - 1,
       is_head: false,
-      marker: std::marker::PhantomData,
+      marker: PhantomData,
     }
   }
 }

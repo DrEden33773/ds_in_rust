@@ -1,4 +1,5 @@
 use super::*;
+use std::marker::PhantomData;
 
 impl<T: Default> FromIterator<T> for LinkedList<T> {
   fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
@@ -15,12 +16,12 @@ pub struct Iter<'a, T: Default> {
   prev: Option<NonNull<ListNode<T>>>,
   head: NonNull<ListNode<T>>,
   tail: NonNull<ListNode<T>>,
-  marker: std::marker::PhantomData<&'a LinkedList<T>>,
+  marker: PhantomData<&'a LinkedList<T>>,
 }
 
 impl<'a, T: Default> DoubleEndedIterator for Iter<'a, T> {
   fn next_back(&mut self) -> Option<Self::Item> {
-    let curr = self.prev?;
+    let curr: NonNull<ListNode<T>> = self.prev?;
     if curr.as_ptr() == self.head.as_ptr() {
       self.prev = None;
       return None;
@@ -56,7 +57,7 @@ impl<'a, T: Default> IntoIterator for &'a LinkedList<T> {
       prev: unsafe { self.tail.as_ref() }.prev,
       head: self.head,
       tail: self.tail,
-      marker: std::marker::PhantomData,
+      marker: PhantomData,
     }
   }
 }
@@ -66,7 +67,7 @@ pub struct IterMut<'a, T: Default> {
   prev: Option<NonNull<ListNode<T>>>,
   head: NonNull<ListNode<T>>,
   tail: NonNull<ListNode<T>>,
-  marker: std::marker::PhantomData<&'a mut LinkedList<T>>,
+  marker: PhantomData<&'a mut LinkedList<T>>,
 }
 
 impl<'a, T: Default> DoubleEndedIterator for IterMut<'a, T> {
@@ -107,7 +108,7 @@ impl<'a, T: Default> IntoIterator for &'a mut LinkedList<T> {
       prev: unsafe { self.tail.as_ref() }.prev,
       head: self.head,
       tail: self.tail,
-      marker: std::marker::PhantomData,
+      marker: PhantomData,
     }
   }
 }

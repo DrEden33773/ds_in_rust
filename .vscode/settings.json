@@ -1,5 +1,6 @@
 {
   "editor.tabSize": 2,
   "rust-analyzer.check.command": "clippy",
-  "cSpell.words": ["dealloc", "nonoverlapping", "realloc"]
+  "cSpell.words": ["dealloc", "helloo", "hellp", "nonoverlapping", "realloc"],
+  "rust-analyzer.linkedProjects": ["./Cargo.toml"]
 }
