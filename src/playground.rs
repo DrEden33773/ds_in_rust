@@ -5,11 +5,11 @@ mod p {
 
   struct Room<'a, K: Hash + Clone + Eq, V: Clone> {
     key_refs: Vec<&'a K>,
-    map: &'a HashMap<K, V>,
+    map: HashMap<K, V>,
   }
 
   impl<'a, K: Hash + Clone + Eq, V: Clone> Room<'a, K, V> {
-    fn new(map: &'a HashMap<K, V>) -> Self {
+    fn new(map: HashMap<K, V>) -> Self {
       Self {
         key_refs: vec![],
         map,
@@ -28,7 +28,7 @@ mod p {
       .into_iter()
       .collect::<HashMap<_, _>>();
 
-    let mut room = Room::new(&map);
+    let mut room = Room::new(map);
 
     room.query(&"a");
     room.query(&"b");
