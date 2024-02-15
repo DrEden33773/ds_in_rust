@@ -11,8 +11,6 @@ pub trait Bounded {
   fn max() -> Self;
 }
 
-pub trait Monotonous: Bounded {}
-
 /// To implement [`Bounded`] and [`Monotonous`] for basic types
 /// which has `MIN` and `MAX` constants.
 #[macro_export]
@@ -27,91 +25,86 @@ macro_rules! impl_bounded {
           Self::MAX
         }
       }
-      impl Monotonous for $t {}
     )*
   };
 }
 
 impl_bounded!(u8, u16, u32, u64, u128, usize);
+impl_bounded!(i8, i16, i32, i64, i128, isize);
+impl_bounded!(f32, f64);
 
-pub struct ExtremePathExecutor<'map, Node, Val, BOP, const REVERSED: bool = false>
+pub struct GreedyExtremePathExecutor<'map, Node, Val, BOP, const REVERSED: bool = false>
 where
   Node: Hash,
-  Val: Ord + Bounded + Monotonous,
+  Val: Ord + Bounded,
   BOP: Fn(Val, Val) -> Val,
 {
-  pub(crate) dist_cache: HashMap<Node, Val>,
-  pub(crate) path_cache: HashMap<Node, Node>,
-  pub(crate) heap: BinaryHeap<Accumulation<Node, Val, REVERSED>>,
-  pub(crate) src: Option<Node>,
-  pub(crate) adj_map: &'map HashMap<Node, Vec<Edge<Node, Val>>>,
-  pub(crate) binary_op: BOP,
+  cost_cache: HashMap<Node, Val>,
+  path_cache: HashMap<Node, Node>,
+  heap: BinaryHeap<Accumulation<Node, Val, REVERSED>>,
+  src: Option<Node>,
+  adj_map: &'map HashMap<Node, Vec<Edge<Node, Val>>>,
+  bop: BOP,
   last_accumulation: Option<Accumulation<Node, Val, REVERSED>>,
   self_cost: Val,
 }
 
 #[allow(unused)]
-type ShortestPathExecutor<'map, Node, Val, BOP> = ExtremePathExecutor<'map, Node, Val, BOP>;
+pub type GreedyShortestPathExecutor<'map, Node, Val, BOP> =
+  GreedyExtremePathExecutor<'map, Node, Val, BOP, false>;
 
 #[allow(unused)]
-type LongestPathExecutor<'map, Node, Val, BOP> = ExtremePathExecutor<'map, Node, Val, BOP, true>;
+pub type GreedyLongestPathExecutor<'map, Node, Val, BOP> =
+  GreedyExtremePathExecutor<'map, Node, Val, BOP, true>;
 
-impl<'map, Node, Val, BOP> ExtremePathExecutor<'map, Node, Val, BOP>
+impl<'map, Node, Val, BOP> GreedyExtremePathExecutor<'map, Node, Val, BOP>
 where
   Node: Hash,
-  Val: Ord + Bounded + Monotonous,
+  Val: Ord + Bounded,
   BOP: Fn(Val, Val) -> Val,
 {
-  pub fn new(
-    adj_map: &'map HashMap<Node, Vec<Edge<Node, Val>>>,
-    binary_op: BOP,
-    self_cost: Val,
-  ) -> Self {
+  pub fn new(adj_map: &'map HashMap<Node, Vec<Edge<Node, Val>>>, bop: BOP, self_cost: Val) -> Self {
     Self {
-      dist_cache: HashMap::new(),
+      cost_cache: HashMap::new(),
       path_cache: HashMap::new(),
       heap: BinaryHeap::new(),
       src: None,
       adj_map,
-      binary_op,
+      bop,
       last_accumulation: None,
       self_cost,
     }
   }
 }
 
-impl<'map, Node, Val, BOP> ExtremePathExecutor<'map, Node, Val, BOP, true>
+impl<'map, Node, Val, BOP> GreedyExtremePathExecutor<'map, Node, Val, BOP, true>
 where
   Node: Hash,
-  Val: Ord + Bounded + Monotonous,
+  Val: Ord + Bounded,
   BOP: Fn(Val, Val) -> Val,
 {
-  pub fn new(
-    adj_map: &'map HashMap<Node, Vec<Edge<Node, Val>>>,
-    binary_op: BOP,
-    self_cost: Val,
-  ) -> Self {
+  pub fn new(adj_map: &'map HashMap<Node, Vec<Edge<Node, Val>>>, bop: BOP, self_cost: Val) -> Self {
     Self {
-      dist_cache: HashMap::new(),
+      cost_cache: HashMap::new(),
       path_cache: HashMap::new(),
       heap: BinaryHeap::new(),
       src: None,
       adj_map,
-      binary_op,
+      bop,
       last_accumulation: None,
       self_cost,
     }
   }
 }
 
-impl<Node, Val, BOP, const REVERSED: bool> ExtremePathExecutor<'_, Node, Val, BOP, REVERSED>
+impl<Node, Val, BOP, const REVERSED: bool> GreedyExtremePathExecutor<'_, Node, Val, BOP, REVERSED>
 where
   Node: Hash + Clone + Eq,
-  Val: Ord + Clone + Bounded + Monotonous,
+  Val: Ord + Clone + Bounded,
   BOP: Fn(Val, Val) -> Val,
 {
   fn clear_all_cache(&mut self) {
-    self.dist_cache.clear();
+    self.cost_cache.clear();
     self.path_cache.clear();
     self.heap.clear();
     self.last_accumulation = None;
@@ -119,7 +112,7 @@ where
 
   fn init(&mut self, node: Node) {
     self.src = Some(node.clone());
-    self.dist_cache.insert(node.clone(), self.self_cost.clone());
+    self.cost_cache.insert(node.clone(), self.self_cost.clone());
     self.path_cache.insert(node.clone(), node.clone());
     self.heap.push(Accumulation {
       dst: node,
@@ -127,7 +120,7 @@ where
     });
   }
 
-  fn cas(&mut self, node: Node) {
+  fn compare_and_swap(&mut self, node: Node) {
     if let Some(ref old_node) = self.src {
       if *old_node != node {
         self.clear_all_cache();
@@ -138,7 +131,7 @@ where
     }
   }
 
-  fn resume_from_prev_extreme_dist_query(&mut self, goal: &Node) -> ControlFlow<Option<Val>, ()> {
+  fn resume_from_last_mutated_extreme_cost(&mut self, goal: &Node) -> ControlFlow<Option<Val>, ()> {
     if let Some(Accumulation {
       dst: picked,
       cost: src_to_picked,
@@ -152,7 +145,7 @@ where
         return ControlFlow::Break(Some(src_to_picked));
       }
 
-      if let Some(old_dist) = self.dist_cache.get(&picked) {
+      if let Some(old_dist) = self.cost_cache.get(&picked) {
         if !REVERSED && src_to_picked > *old_dist {
           return ControlFlow::Continue(());
         }
@@ -172,22 +165,22 @@ where
         cost: picked_to_next,
       } in edges.cloned().unwrap()
       {
-        let src_to_next = (self.binary_op)(src_to_picked.clone(), picked_to_next.clone());
+        let src_to_next = (self.bop)(src_to_picked.clone(), picked_to_next.clone());
         let should_update = if !REVERSED {
           src_to_next
             < *self
-              .dist_cache
+              .cost_cache
               .get(&dst)
               .unwrap_or(&<Val as Bounded>::max())
         } else {
           src_to_next
             > *self
-              .dist_cache
+              .cost_cache
               .get(&dst)
               .unwrap_or(&<Val as Bounded>::min())
         };
         if should_update {
-          self.dist_cache.insert(dst.clone(), src_to_next.clone());
+          self.cost_cache.insert(dst.clone(), src_to_next.clone());
           self.path_cache.insert(dst.clone(), picked.clone());
           self.heap.push(Accumulation {
             dst,
@@ -200,14 +193,14 @@ where
     ControlFlow::Continue(())
   }
 
-  pub fn extreme_dist(&mut self, src: Node, goal: Node) -> Option<Val> {
-    self.cas(src);
+  pub fn extreme_cost(&mut self, src: Node, goal: Node) -> Option<Val> {
+    self.compare_and_swap(src);
 
-    if let Some(dist) = self.dist_cache.get(&goal) {
+    if let Some(dist) = self.cost_cache.get(&goal) {
       return Some(dist.clone());
     }
 
-    match self.resume_from_prev_extreme_dist_query(&goal) {
+    match self.resume_from_last_mutated_extreme_cost(&goal) {
       ControlFlow::Break(res) => return res,
       ControlFlow::Continue(_) => {}
     };
@@ -225,7 +218,7 @@ where
         return Some(src_to_picked);
       }
 
-      if let Some(old_dist) = self.dist_cache.get(&picked) {
+      if let Some(old_dist) = self.cost_cache.get(&picked) {
         if !REVERSED && src_to_picked > *old_dist {
           continue;
         }
@@ -239,22 +232,22 @@ where
         cost: picked_to_next,
       } in self.adj_map.get(&picked)?.clone()
       {
-        let src_to_next = (self.binary_op)(src_to_picked.clone(), picked_to_next.clone());
+        let src_to_next = (self.bop)(src_to_picked.clone(), picked_to_next.clone());
         let should_update = if !REVERSED {
           src_to_next
             < *self
-              .dist_cache
+              .cost_cache
               .get(&dst)
               .unwrap_or(&<Val as Bounded>::max())
         } else {
           src_to_next
             > *self
-              .dist_cache
+              .cost_cache
               .get(&dst)
               .unwrap_or(&<Val as Bounded>::min())
         };
         if should_update {
-          self.dist_cache.insert(dst.clone(), src_to_next.clone());
+          self.cost_cache.insert(dst.clone(), src_to_next.clone());
           self.path_cache.insert(dst.clone(), picked.clone());
           self.heap.push(Accumulation {
             dst,
@@ -316,19 +309,96 @@ mod test_shortest_path_executor {
     ]
     .into_iter()
     .enumerate()
+    .collect::<HashMap<usize, Vec<Edge<usize, usize>>>>();
+
+    let mut shortest = GreedyShortestPathExecutor::new(&adj_map, |a, b| a + b, 0);
+
+    assert_eq!(shortest.extreme_cost(0, 1), Some(1));
+    assert_eq!(shortest.extreme_cost(0, 3), Some(3));
+    assert_eq!(shortest.extreme_cost(3, 0), Some(7));
+    assert_eq!(shortest.extreme_cost(4, 0), None);
+    assert_eq!(shortest.extreme_cost(2, 4), Some(1));
+    assert_eq!(shortest.extreme_cost(3, 4), Some(2));
+    assert_eq!(shortest.extreme_cost(0, 4), Some(5));
+    assert_eq!(shortest.extreme_cost(2, 1), Some(1));
+    assert_eq!(shortest.extreme_cost(4, 1), None);
+  }
+
+  #[test]
+  fn test_isolated_vertices() {
+    let adj_map = [
+      // Node 0
+      vec![],
+      // Node 1
+      vec![],
+      // Node 2
+      vec![],
+      // Node 3
+      vec![],
+      // Node 4
+      vec![],
+    ]
+    .into_iter()
+    .enumerate()
+    .collect::<HashMap<usize, Vec<Edge<_, usize>>>>();
+
+    let mut shortest = GreedyShortestPathExecutor::new(&adj_map, |a, b| a + b, 0);
+
+    assert_eq!(shortest.extreme_cost(0, 1), None);
+    assert_eq!(shortest.extreme_cost(0, 3), None);
+    assert_eq!(shortest.extreme_cost(3, 0), None);
+    assert_eq!(shortest.extreme_cost(4, 0), None);
+    assert_eq!(shortest.extreme_cost(2, 4), None);
+    assert_eq!(shortest.extreme_cost(3, 4), None);
+    assert_eq!(shortest.extreme_cost(0, 4), None);
+    assert_eq!(shortest.extreme_cost(2, 1), None);
+    assert_eq!(shortest.extreme_cost(4, 1), None);
+
+    let mut longest = GreedyLongestPathExecutor::new(&adj_map, |a, b| a + b, 0);
+
+    assert_eq!(longest.extreme_cost(0, 1), None);
+    assert_eq!(longest.extreme_cost(0, 3), None);
+    assert_eq!(longest.extreme_cost(3, 0), None);
+    assert_eq!(longest.extreme_cost(4, 0), None);
+    assert_eq!(longest.extreme_cost(2, 4), None);
+    assert_eq!(longest.extreme_cost(3, 4), None);
+    assert_eq!(longest.extreme_cost(0, 4), None);
+    assert_eq!(longest.extreme_cost(2, 1), None);
+    assert_eq!(longest.extreme_cost(4, 1), None);
+  }
+
+  #[test]
+  fn test_attached_vertices() {
+    const ZERO_COST: i32 = 0;
+    let adj_map = [
+      // Node 0
+      vec![Edge::new(1, ZERO_COST), Edge::new(2, ZERO_COST)],
+      // Node 1
+      vec![Edge::new(0, ZERO_COST), Edge::new(2, ZERO_COST)],
+      // Node 2
+      vec![Edge::new(0, ZERO_COST), Edge::new(1, ZERO_COST)],
+    ]
+    .into_iter()
+    .enumerate()
     .collect::<HashMap<_, _>>();
 
-    let mut shortest = ShortestPathExecutor::new(&adj_map, |a, b| a + b, 0);
+    let mut shortest = GreedyShortestPathExecutor::new(&adj_map, |a, b| a + b, 0);
 
-    assert_eq!(shortest.extreme_dist(0, 1), Some(1));
-    assert_eq!(shortest.extreme_dist(0, 3), Some(3));
-    assert_eq!(shortest.extreme_dist(3, 0), Some(7));
-    assert_eq!(shortest.extreme_dist(4, 0), None);
-    assert_eq!(shortest.extreme_dist(2, 4), Some(1));
-    assert_eq!(shortest.extreme_dist(3, 4), Some(2));
-    assert_eq!(shortest.extreme_dist(0, 4), Some(5));
-    assert_eq!(shortest.extreme_dist(2, 1), Some(1));
-    assert_eq!(shortest.extreme_dist(4, 1), None);
+    assert_eq!(shortest.extreme_cost(0, 1), Some(0));
+    assert_eq!(shortest.extreme_cost(0, 2), Some(0));
+    assert_eq!(shortest.extreme_cost(1, 0), Some(0));
+    assert_eq!(shortest.extreme_cost(1, 2), Some(0));
+    assert_eq!(shortest.extreme_cost(2, 0), Some(0));
+    assert_eq!(shortest.extreme_cost(2, 1), Some(0));
+
+    let mut longest = GreedyLongestPathExecutor::new(&adj_map, |a, b| a + b, 0);
+
+    assert_eq!(longest.extreme_cost(0, 1), Some(0));
+    assert_eq!(longest.extreme_cost(0, 2), Some(0));
+    assert_eq!(longest.extreme_cost(1, 0), Some(0));
+    assert_eq!(longest.extreme_cost(1, 2), Some(0));
+    assert_eq!(longest.extreme_cost(2, 0), Some(0));
+    assert_eq!(longest.extreme_cost(2, 1), Some(0));
   }
 
   #[test]
@@ -337,13 +407,10 @@ mod test_shortest_path_executor {
       fn min() -> Self {
         NotNan::new(0.0).unwrap()
       }
-
       fn max() -> Self {
         NotNan::new(1.0).unwrap()
       }
     }
-
-    impl Monotonous for NotNan<f64> {}
 
     let edges = vec![(1, 4), (2, 4), (0, 4), (0, 3), (0, 2), (2, 3)];
     let succ_proc = vec![0.37, 0.17, 0.93, 0.23, 0.39, 0.04];
@@ -365,10 +432,11 @@ mod test_shortest_path_executor {
         .push(Edge::new(src, NotNan::new(cost).unwrap()));
     }
 
-    let mut max_prob = LongestPathExecutor::new(&adj_map, |a, b| a * b, NotNan::new(1.0).unwrap());
+    let mut max_probability =
+      GreedyLongestPathExecutor::new(&adj_map, |a, b| a * b, NotNan::new(1.0).unwrap());
 
     assert_eq!(
-      max_prob.extreme_dist(3, 4),
+      max_probability.extreme_cost(3, 4),
       Some(NotNan::new(0.2139).unwrap())
     );
   }

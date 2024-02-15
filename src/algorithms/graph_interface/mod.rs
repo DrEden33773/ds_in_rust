@@ -1,4 +1,4 @@
-pub mod extreme_path;
+pub mod greedy_extreme_path;
 
 pub struct Edge<Node, Value> {
   pub(crate) dst: Node,
