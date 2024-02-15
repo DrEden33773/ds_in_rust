@@ -131,7 +131,7 @@ where
     }
   }
 
-  fn resume_from_last_mutated_extreme_cost(&mut self, goal: &Node) -> ControlFlow<Option<Val>, ()> {
+  fn resume_from_last_mutated_query(&mut self, goal: &Node) -> ControlFlow<Option<Val>, ()> {
     if let Some(Accumulation {
       dst: picked,
       cost: src_to_picked,
@@ -194,13 +194,17 @@ where
   }
 
   pub fn extreme_cost(&mut self, src: Node, goal: Node) -> Option<Val> {
+    if !self.adj_map.contains_key(&src) || !self.adj_map.contains_key(&goal) {
+      return None;
+    }
+
     self.compare_and_swap(src);
 
     if let Some(dist) = self.cost_cache.get(&goal) {
       return Some(dist.clone());
     }
 
-    match self.resume_from_last_mutated_extreme_cost(&goal) {
+    match self.resume_from_last_mutated_query(&goal) {
       ControlFlow::Break(res) => return res,
       ControlFlow::Continue(_) => {}
     };
@@ -259,13 +263,35 @@ where
 
     None
   }
+
+  pub fn extreme_path(&mut self, src: Node, goal: Node) -> Vec<Node> {
+    if !self.adj_map.contains_key(&src) || !self.adj_map.contains_key(&goal) {
+      return vec![];
+    }
+
+    // 1. execute `self.extreme_cost()` first
+    let cost = self.extreme_cost(src.clone(), goal.clone());
+    if cost.is_none() {
+      return vec![];
+    }
+    // 2. build result
+    let mut result = vec![];
+    let mut current = goal;
+    while current != src {
+      result.push(current.clone());
+      current = self.path_cache.get(&current).unwrap().clone();
+    }
+    result.push(src);
+    result.reverse();
+    // 3. done!
+    result
+  }
 }
 
 #[cfg(test)]
-mod test_shortest_path_executor {
-  use ordered_float::NotNan;
-
+mod test_extreme_cost {
   use super::*;
+  use ordered_float::NotNan;
 
   /// This is the directed graph we're going to use.
   ///
@@ -313,6 +339,10 @@ mod test_shortest_path_executor {
 
     let mut shortest = GreedyShortestPathExecutor::new(&adj_map, |a, b| a + b, 0);
 
+    for node in 0..=4 {
+      assert_eq!(shortest.extreme_cost(node, node), Some(0));
+    }
+
     assert_eq!(shortest.extreme_cost(0, 1), Some(1));
     assert_eq!(shortest.extreme_cost(0, 3), Some(3));
     assert_eq!(shortest.extreme_cost(3, 0), Some(7));
@@ -322,6 +352,10 @@ mod test_shortest_path_executor {
     assert_eq!(shortest.extreme_cost(0, 4), Some(5));
     assert_eq!(shortest.extreme_cost(2, 1), Some(1));
     assert_eq!(shortest.extreme_cost(4, 1), None);
+    assert_eq!(shortest.extreme_cost(1, 2), Some(19));
+    assert_eq!(shortest.extreme_cost(3, 1), Some(8));
+
+    assert_eq!(shortest.extreme_cost(114514, 1919810), None);
   }
 
   #[test]
@@ -439,5 +473,75 @@ mod test_shortest_path_executor {
       max_probability.extreme_cost(3, 4),
       Some(NotNan::new(0.2139).unwrap())
     );
+  }
+}
+
+#[cfg(test)]
+mod test_extreme_path {
+  use super::*;
+
+  /// This is the directed graph we're going to use.
+  ///
+  /// The node numbers correspond to the different states,
+  /// and the edge weights symbolize the cost of moving
+  /// from one node to another.
+  ///
+  /// Note that the edges are one-way.
+  ///
+  /// ```txt
+  ///                  7
+  ///          +-----------------+
+  ///          |                 |
+  ///          v   1        2    |  2
+  ///          0 -----> 1 -----> 3 ---> 4
+  ///          |        ^        ^      ^
+  ///          |        | 1      |      |
+  ///          |        |        | 3    | 1
+  ///          +------> 2 -------+      |
+  ///           10      |               |
+  ///                   +---------------+
+  /// ```
+  ///
+  /// The graph is represented as an adjacency list where each index,
+  /// corresponding to a node value, has a list of outgoing edges.
+  ///
+  /// Chosen for its efficiency.
+  #[test]
+  fn test_official_case() {
+    let adj_map = [
+      // Node 0
+      vec![Edge::new(2, 10usize), Edge::new(1, 1)],
+      // Node 1
+      vec![Edge::new(3, 2)],
+      // Node 2
+      vec![Edge::new(1, 1), Edge::new(3, 3), Edge::new(4, 1)],
+      // Node 3
+      vec![Edge::new(0, 7), Edge::new(4, 2)],
+      // Node 4
+      vec![],
+    ]
+    .into_iter()
+    .enumerate()
+    .collect::<HashMap<usize, Vec<Edge<usize, usize>>>>();
+
+    let mut shortest = GreedyShortestPathExecutor::new(&adj_map, |a, b| a + b, 0);
+
+    for node in 0..=4 {
+      assert_eq!(shortest.extreme_path(node, node), [node]);
+    }
+
+    assert_eq!(shortest.extreme_path(0, 1), [0, 1]);
+    assert_eq!(shortest.extreme_path(0, 3), [0, 1, 3]);
+    assert_eq!(shortest.extreme_path(3, 0), [3, 0]);
+    assert_eq!(shortest.extreme_path(4, 0), []);
+    assert_eq!(shortest.extreme_path(2, 4), [2, 4]);
+    assert_eq!(shortest.extreme_path(3, 4), [3, 4]);
+    assert_eq!(shortest.extreme_path(0, 4), [0, 1, 3, 4]);
+    assert_eq!(shortest.extreme_path(2, 1), [2, 1]);
+    assert_eq!(shortest.extreme_path(4, 1), []);
+    assert_eq!(shortest.extreme_path(1, 2), [1, 3, 0, 2]);
+    assert_eq!(shortest.extreme_path(3, 1), [3, 0, 1]);
+
+    assert_eq!(shortest.extreme_path(114514, 1919810), []);
   }
 }
