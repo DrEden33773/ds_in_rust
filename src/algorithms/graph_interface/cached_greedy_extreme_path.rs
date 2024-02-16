@@ -19,6 +19,18 @@ where
   last_accumulation: Option<Accumulation<&'map Node, Val, REVERSED>>,
 }
 
+pub struct CachedGreedyExtremePathView<'map, Node, Val, BOP, const REVERSED: bool = false>
+where
+  Node: Hash,
+  Val: Ord + Bounded,
+  BOP: Fn(Val, Val) -> Val,
+{
+  cache: LruCache<&'map Node, CacheRow<'map, Node, Val, REVERSED>>,
+  adj_map: &'map HashMap<Node, Vec<Edge<Node, Val>>>,
+  bop: BOP,
+  self_cost: Val,
+}
+
 impl<'map, Node, Val, const REVERSED: bool> CacheRow<'map, Node, Val, REVERSED>
 where
   Node: Hash,
@@ -37,18 +49,6 @@ where
       last_accumulation,
     }
   }
-}
-
-pub struct CachedGreedyExtremePathView<'map, Node, Val, BOP, const REVERSED: bool = false>
-where
-  Node: Hash,
-  Val: Ord + Bounded,
-  BOP: Fn(Val, Val) -> Val,
-{
-  cache: LruCache<&'map Node, CacheRow<'map, Node, Val, REVERSED>>,
-  adj_map: &'map HashMap<Node, Vec<Edge<Node, Val>>>,
-  bop: BOP,
-  self_cost: Val,
 }
 
 #[allow(unused)]
