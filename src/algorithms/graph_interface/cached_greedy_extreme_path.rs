@@ -67,11 +67,7 @@ where
   BOP: Fn(Val, Val) -> Val,
 {
   pub fn new(adj_map: &'map HashMap<Node, Vec<Edge<Node, Val>>>, bop: BOP, self_cost: Val) -> Self {
-    #[cfg(not(test))]
-    return Self::new_with_cache_capacity(adj_map, bop, self_cost, 4);
-
-    #[cfg(test)]
-    return Self::new_with_cache_capacity(adj_map, bop, self_cost, 8);
+    Self::new_with_cache_capacity(adj_map, bop, self_cost, 4)
   }
 
   pub fn new_with_cache_capacity(
