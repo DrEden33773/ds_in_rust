@@ -39,8 +39,8 @@ where
   Val: Ord + Bounded,
   BOP: Fn(Val, Val) -> Val,
 {
-  cost_cache: HashMap<&'map Node, Val>,
-  path_cache: HashMap<&'map Node, &'map Node>,
+  cost: HashMap<&'map Node, Val>,
+  path: HashMap<&'map Node, &'map Node>,
   heap: BinaryHeap<Accumulation<&'map Node, Val, REVERSED>>,
   src: Option<&'map Node>,
   adj_map: &'map HashMap<Node, Vec<Edge<Node, Val>>>,
@@ -57,7 +57,8 @@ pub type GreedyShortestPathView<'map, Node, Val, BOP> =
 pub type GreedyLongestPathView<'map, Node, Val, BOP> =
   GreedyExtremePathView<'map, Node, Val, BOP, true>;
 
-impl<'map, Node, Val, BOP> GreedyExtremePathView<'map, Node, Val, BOP>
+impl<'map, Node, Val, BOP, const REVERSED: bool>
+  GreedyExtremePathView<'map, Node, Val, BOP, REVERSED>
 where
   Node: Hash,
   Val: Ord + Bounded,
@@ -65,28 +66,8 @@ where
 {
   pub fn new(adj_map: &'map HashMap<Node, Vec<Edge<Node, Val>>>, bop: BOP, self_cost: Val) -> Self {
     Self {
-      cost_cache: HashMap::new(),
-      path_cache: HashMap::new(),
-      heap: BinaryHeap::new(),
-      src: None,
-      adj_map,
-      bop,
-      last_accumulation: None,
-      self_cost,
-    }
-  }
-}
-
-impl<'map, Node, Val, BOP> GreedyExtremePathView<'map, Node, Val, BOP, true>
-where
-  Node: Hash,
-  Val: Ord + Bounded,
-  BOP: Fn(Val, Val) -> Val,
-{
-  pub fn new(adj_map: &'map HashMap<Node, Vec<Edge<Node, Val>>>, bop: BOP, self_cost: Val) -> Self {
-    Self {
-      cost_cache: HashMap::new(),
-      path_cache: HashMap::new(),
+      cost: HashMap::new(),
+      path: HashMap::new(),
       heap: BinaryHeap::new(),
       src: None,
       adj_map,
@@ -105,16 +86,16 @@ where
   BOP: Fn(Val, Val) -> Val,
 {
   fn clear_all_cache(&mut self) {
-    self.cost_cache.clear();
-    self.path_cache.clear();
+    self.cost.clear();
+    self.path.clear();
     self.heap.clear();
     self.last_accumulation = None;
   }
 
   fn init(&mut self, node: &'map Node) {
     self.src = Some(node);
-    self.cost_cache.insert(node, self.self_cost.clone());
-    self.path_cache.insert(node, node);
+    self.cost.insert(node, self.self_cost.clone());
+    self.path.insert(node, node);
     self.heap.push(Accumulation {
       dst: node,
       cost: self.self_cost.clone(),
@@ -146,7 +127,7 @@ where
         return ControlFlow::Break(Some(src_to_picked));
       }
 
-      if let Some(old_dist) = self.cost_cache.get(&picked) {
+      if let Some(old_dist) = self.cost.get(&picked) {
         if !REVERSED && src_to_picked > *old_dist {
           return ControlFlow::Continue(());
         }
@@ -168,21 +149,13 @@ where
       {
         let src_to_next = (self.bop)(src_to_picked.clone(), picked_to_next.clone());
         let should_update = if !REVERSED {
-          src_to_next
-            < *self
-              .cost_cache
-              .get(&dst)
-              .unwrap_or(&<Val as Bounded>::max())
+          src_to_next < *self.cost.get(&dst).unwrap_or(&<Val as Bounded>::max())
         } else {
-          src_to_next
-            > *self
-              .cost_cache
-              .get(&dst)
-              .unwrap_or(&<Val as Bounded>::min())
+          src_to_next > *self.cost.get(&dst).unwrap_or(&<Val as Bounded>::min())
         };
         if should_update {
-          self.cost_cache.insert(dst, src_to_next.clone());
-          self.path_cache.insert(dst, picked);
+          self.cost.insert(dst, src_to_next.clone());
+          self.path.insert(dst, picked);
           self.heap.push(Accumulation {
             dst,
             cost: src_to_next,
@@ -201,7 +174,7 @@ where
 
     self.compare_and_swap(src);
 
-    if let Some(dist) = self.cost_cache.get(&goal) {
+    if let Some(dist) = self.cost.get(&goal) {
       return Some(dist.clone());
     }
 
@@ -223,7 +196,7 @@ where
         return Some(src_to_picked);
       }
 
-      if let Some(old_dist) = self.cost_cache.get(&picked) {
+      if let Some(old_dist) = self.cost.get(&picked) {
         if !REVERSED && src_to_picked > *old_dist {
           continue;
         }
@@ -239,21 +212,13 @@ where
       {
         let src_to_next = (self.bop)(src_to_picked.clone(), picked_to_next.clone());
         let should_update = if !REVERSED {
-          src_to_next
-            < *self
-              .cost_cache
-              .get(&dst)
-              .unwrap_or(&<Val as Bounded>::max())
+          src_to_next < *self.cost.get(&dst).unwrap_or(&<Val as Bounded>::max())
         } else {
-          src_to_next
-            > *self
-              .cost_cache
-              .get(&dst)
-              .unwrap_or(&<Val as Bounded>::min())
+          src_to_next > *self.cost.get(&dst).unwrap_or(&<Val as Bounded>::min())
         };
         if should_update {
-          self.cost_cache.insert(dst, src_to_next.clone());
-          self.path_cache.insert(dst, picked);
+          self.cost.insert(dst, src_to_next.clone());
+          self.path.insert(dst, picked);
           self.heap.push(Accumulation {
             dst,
             cost: src_to_next,
@@ -280,7 +245,7 @@ where
     let mut current = goal;
     while current != src {
       result.push(current.clone());
-      current = self.path_cache.get(&current).unwrap();
+      current = self.path.get(&current).unwrap();
     }
     result.push(src.clone());
     result.reverse();

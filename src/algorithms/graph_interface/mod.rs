@@ -1,3 +1,4 @@
+pub mod cached_greedy_extreme_path;
 pub mod greedy_extreme_path;
 
 pub struct Edge<Node, Value> {

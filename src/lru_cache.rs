@@ -1,5 +1,7 @@
 use std::{borrow::Borrow, collections::HashMap, hash::Hash, num::NonZeroUsize, ptr::NonNull};
 
+pub const DEFAULT_CAPACITY: usize = 8;
+
 struct LruCacheNode<K, V> {
   key: K,
   value: V,
@@ -57,7 +59,6 @@ pub struct LruCache<K, V> {
 
 impl<K, V> Default for LruCache<K, V> {
   fn default() -> Self {
-    const DEFAULT_CAPACITY: usize = 8;
     Self {
       head: None,
       tail: None,
@@ -146,16 +147,7 @@ impl<K: PartialEq, V> LruCache<K, V> {
 }
 
 impl<K: Hash + Eq, V> LruCache<K, V> {
-  pub fn new(capacity: impl Into<NonZeroUsize>) -> Self {
-    Self {
-      head: None,
-      tail: None,
-      map: HashMap::new(),
-      capacity: capacity.into(),
-    }
-  }
-
-  pub fn update(&mut self, key: K, value: V) -> Option<V> {
+  pub fn put(&mut self, key: K, value: V) -> Option<V> {
     // new node
     let node = Box::leak(Box::new(LruCacheNode::new(key, value))).into();
 
@@ -224,6 +216,22 @@ impl<K: Hash + Eq, V> LruCache<K, V> {
   pub fn contains_key(&self, key: &K) -> bool {
     self.map.contains_key(key)
   }
+}
+
+impl<K, V> LruCache<K, V> {
+  pub fn new(capacity: impl TryInto<NonZeroUsize>) -> Self {
+    Self {
+      head: None,
+      tail: None,
+      map: HashMap::new(),
+      capacity: capacity
+        .try_into()
+        .unwrap_or_else(|_| {
+          println!("Input `capacity` cannot converts to a [`NonZeroUsize`], use `DEFAULT_CAPACITY = {}` instead.", DEFAULT_CAPACITY);
+          NonZeroUsize::new(DEFAULT_CAPACITY).unwrap()
+        }),
+    }
+  }
 
   pub fn len(&self) -> usize {
     self.map.len()
@@ -249,5 +257,24 @@ impl<K: Hash + Eq, V> LruCache<K, V> {
 
     self.head = None;
     self.tail = None;
+  }
+}
+
+#[cfg(test)]
+mod test_lru_cache {
+  use super::*;
+
+  #[test]
+  fn test_leetcode_case() {
+    let mut cache = LruCache::new(2);
+    cache.put(1, 1);
+    cache.put(2, 2);
+    assert_eq!(cache.get(&1), Some(&1));
+    cache.put(3, 3);
+    assert_eq!(cache.get(&2), None);
+    cache.put(4, 4);
+    assert_eq!(cache.get(&1), None);
+    assert_eq!(cache.get(&3), Some(&3));
+    assert_eq!(cache.get(&4), Some(&4));
   }
 }
