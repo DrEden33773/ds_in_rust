@@ -11,7 +11,7 @@ pub trait Bounded {
   fn max() -> Self;
 }
 
-/// To implement [`Bounded`] and [`Monotonous`] for basic types
+/// To implement [`Bounded`]  for basic types
 /// which has `MIN` and `MAX` constants.
 #[macro_export]
 macro_rules! impl_bounded {
