@@ -312,8 +312,7 @@ mod test_cached_extreme_cost {
   /// corresponding to a node value, has a list of outgoing edges.
   ///
   /// Chosen for its efficiency.
-  #[test]
-  fn test_official_case() {
+  fn test_official_case(cache_capacity: usize) {
     let adj_map = [
       // Node 0
       vec![Edge::new(2, 10usize), Edge::new(1, 1)],
@@ -345,47 +344,27 @@ mod test_cached_extreme_cost {
       (&114514, &1919810, None),
     ];
 
-    let mut shortest = CachedGreedyShortestPathView::new(&adj_map, |a, b| a + b, 0);
+    let mut shortest = CachedGreedyShortestPathView::new_with_cache_capacity(
+      &adj_map,
+      |a, b| a + b,
+      0,
+      cache_capacity,
+    );
 
     for (start, end, expected_cost) in test_cases {
-      println!("Testing: ({start}, {end}, {expected_cost:?})");
+      // println!("Testing: ({start}, {end}, {expected_cost:?})");
       assert_eq!(shortest.extreme_cost(start, end), expected_cost);
     }
   }
 
   #[test]
+  fn test_official_case_with_no_queries_exiled() {
+    test_official_case(8)
+  }
+
+  #[test]
   fn test_official_case_with_queries_exiled() {
-    let adj_map = [
-      // Node 0
-      vec![Edge::new(2, 10usize), Edge::new(1, 1)],
-      // Node 1
-      vec![Edge::new(3, 2)],
-      // Node 2
-      vec![Edge::new(1, 1), Edge::new(3, 3), Edge::new(4, 1)],
-      // Node 3
-      vec![Edge::new(0, 7), Edge::new(4, 2)],
-      // Node 4
-      vec![],
-    ]
-    .into_iter()
-    .enumerate()
-    .collect::<HashMap<usize, Vec<Edge<usize, usize>>>>();
-
-    let mut shortest =
-      CachedGreedyShortestPathView::new_with_cache_capacity(&adj_map, |a, b| a + b, 0, 4);
-
-    assert_eq!(shortest.extreme_cost(&0, &1), Some(1));
-    assert_eq!(shortest.extreme_cost(&0, &3), Some(3));
-    assert_eq!(shortest.extreme_cost(&3, &0), Some(7));
-    assert_eq!(shortest.extreme_cost(&4, &0), None);
-    assert_eq!(shortest.extreme_cost(&2, &4), Some(1));
-    assert_eq!(shortest.extreme_cost(&3, &4), Some(2));
-    assert_eq!(shortest.extreme_cost(&0, &4), Some(5));
-    assert_eq!(shortest.extreme_cost(&2, &1), Some(1));
-    assert_eq!(shortest.extreme_cost(&4, &1), None);
-    assert_eq!(shortest.extreme_cost(&1, &2), Some(19));
-    assert_eq!(shortest.extreme_cost(&3, &1), Some(8));
-    assert_eq!(shortest.extreme_cost(&114514, &1919810), None);
+    test_official_case(4)
   }
 
   #[test]
@@ -593,7 +572,7 @@ mod test_cached_extreme_path {
     ];
 
     for (start, end, expected_path) in test_cases {
-      println!("Testing: ({start}, {end}, {:?})", expected_path.clone());
+      // println!("Testing: ({start}, {end}, {:?})", expected_path.clone());
       assert_eq!(shortest.extreme_path(start, end), expected_path);
     }
   }
