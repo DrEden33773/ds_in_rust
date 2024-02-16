@@ -187,6 +187,10 @@ impl<K: Hash + Eq, V> LruCache<K, V> {
     }
   }
 
+  pub fn get_unwrapped(&mut self, key: &K) -> &V {
+    self.get(key).unwrap()
+  }
+
   pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
     // query
     if let Some(node) = self.map.get(key) {
@@ -199,6 +203,10 @@ impl<K: Hash + Eq, V> LruCache<K, V> {
     } else {
       None
     }
+  }
+
+  pub fn get_mut_unwrapped(&mut self, key: &K) -> &mut V {
+    self.get_mut(key).unwrap()
   }
 
   pub fn remove(&mut self, key: &K) -> Option<V> {
@@ -276,5 +284,12 @@ mod test_lru_cache {
     assert_eq!(cache.get(&1), None);
     assert_eq!(cache.get(&3), Some(&3));
     assert_eq!(cache.get(&4), Some(&4));
+  }
+
+  #[test]
+  fn test_leetcode_case_put_only() {
+    let mut cache = LruCache::new(2);
+    cache.put(1, 1);
+    cache.put(2, 2);
   }
 }

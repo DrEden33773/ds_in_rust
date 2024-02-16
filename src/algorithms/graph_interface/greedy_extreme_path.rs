@@ -127,7 +127,7 @@ where
         return ControlFlow::Break(Some(src_to_picked));
       }
 
-      if let Some(old_dist) = self.cost.get(&picked) {
+      if let Some(old_dist) = self.cost.get(picked) {
         if !REVERSED && src_to_picked > *old_dist {
           return ControlFlow::Continue(());
         }
@@ -137,7 +137,6 @@ where
       }
 
       let edges = self.adj_map.get(picked);
-
       if edges.is_none() {
         return ControlFlow::Continue(());
       }
@@ -149,9 +148,9 @@ where
       {
         let src_to_next = (self.bop)(src_to_picked.clone(), picked_to_next.clone());
         let should_update = if !REVERSED {
-          src_to_next < *self.cost.get(&dst).unwrap_or(&<Val as Bounded>::max())
+          src_to_next < *self.cost.get(dst).unwrap_or(&<Val as Bounded>::max())
         } else {
-          src_to_next > *self.cost.get(&dst).unwrap_or(&<Val as Bounded>::min())
+          src_to_next > *self.cost.get(dst).unwrap_or(&<Val as Bounded>::min())
         };
         if should_update {
           self.cost.insert(dst, src_to_next.clone());
@@ -196,7 +195,7 @@ where
         return Some(src_to_picked);
       }
 
-      if let Some(old_dist) = self.cost.get(&picked) {
+      if let Some(old_dist) = self.cost.get(picked) {
         if !REVERSED && src_to_picked > *old_dist {
           continue;
         }
@@ -212,9 +211,9 @@ where
       {
         let src_to_next = (self.bop)(src_to_picked.clone(), picked_to_next.clone());
         let should_update = if !REVERSED {
-          src_to_next < *self.cost.get(&dst).unwrap_or(&<Val as Bounded>::max())
+          src_to_next < *self.cost.get(dst).unwrap_or(&<Val as Bounded>::max())
         } else {
-          src_to_next > *self.cost.get(&dst).unwrap_or(&<Val as Bounded>::min())
+          src_to_next > *self.cost.get(dst).unwrap_or(&<Val as Bounded>::min())
         };
         if should_update {
           self.cost.insert(dst, src_to_next.clone());
@@ -240,15 +239,17 @@ where
     if cost.is_none() {
       return vec![];
     }
+
     // 2. build result
     let mut result = vec![];
     let mut current = goal;
     while current != src {
       result.push(current.clone());
-      current = self.path.get(&current).unwrap();
+      current = self.path.get(current).unwrap();
     }
     result.push(src.clone());
     result.reverse();
+
     // 3. done!
     result
   }

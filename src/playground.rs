@@ -33,5 +33,9 @@ mod p {
     room.query(&"a");
     room.query(&"b");
     room.query(&"c");
+
+    let mut map = HashMap::<i32, i32>::new();
+
+    map.entry(1);
   }
 }
