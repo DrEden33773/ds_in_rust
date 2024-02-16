@@ -173,7 +173,7 @@ where
 
     self.compare_and_swap(src);
 
-    if let Some(dist) = self.cost.get(&goal) {
+    if let Some(dist) = self.cost.get(goal) {
       return Some(dist.clone());
     }
 
