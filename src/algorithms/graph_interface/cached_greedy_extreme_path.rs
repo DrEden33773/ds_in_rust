@@ -261,6 +261,7 @@ where
     if cost.is_none() {
       return vec![];
     }
+
     // 2. build result
     let mut result = vec![];
     let mut current = goal;
