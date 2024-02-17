@@ -23,6 +23,7 @@ mod p {
     }
   }
 
+  #[test]
   fn demo() {
     let map = vec![("a", 1), ("b", 2), ("c", 3)]
       .into_iter()
@@ -37,5 +38,16 @@ mod p {
     let mut map = HashMap::<i32, i32>::new();
 
     map.entry(1);
+  }
+
+  #[test]
+  fn hash_set_enumerate() {
+    let set = vec![1, 2, 3]
+      .into_iter()
+      .collect::<std::collections::HashSet<_>>();
+
+    for (i, e) in set.iter().enumerate() {
+      println!("{}: {}", i, e);
+    }
   }
 }
