@@ -8,6 +8,7 @@ pub struct DisjointSet<T: Hash + Eq> {
   ie_map: HashMap<usize, T>,
   parent: Vec<usize>,
   size: Vec<usize>,
+  root_num: usize,
 }
 
 impl<T: Hash + Eq> DisjointSet<T> {
@@ -48,6 +49,7 @@ impl<T: Hash + Eq> DisjointSet<T> {
     }
 
     self.parent[l] = r;
+    self.root_num -= 1;
     Ok(())
   }
 
@@ -70,11 +72,16 @@ impl<T: Hash + Eq> DisjointSet<T> {
       self.size[l] += self.size[r];
     }
 
+    self.root_num -= 1;
     Ok(())
   }
 }
 
 impl<T: Hash + Eq> DisjointSet<T> {
+  pub fn root_num(&self) -> usize {
+    self.root_num
+  }
+
   fn get_root_index(&mut self, index: usize) -> usize {
     if self.parent[index] == index {
       index
@@ -107,6 +114,7 @@ impl<T: Hash + Eq + Clone> DisjointSet<T> {
       ie_map,
       parent,
       size,
+      root_num: len,
     }
   }
 }

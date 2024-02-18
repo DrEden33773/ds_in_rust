@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use std::{cell::RefCell, rc::Rc};
+
 #[derive(PartialEq, PartialOrd)]
 struct Entry<'a, K: PartialEq + PartialOrd, V: PartialEq> {
   key: &'a K,
@@ -9,8 +11,8 @@ struct Entry<'a, K: PartialEq + PartialOrd, V: PartialEq> {
 struct Node<K: PartialEq + PartialOrd, V: PartialEq> {
   key: K,
   value: V,
-  left: Option<Box<Node<K, V>>>,
-  right: Option<Box<Node<K, V>>>,
+  left: Option<Rc<RefCell<Node<K, V>>>>,
+  right: Option<Rc<RefCell<Node<K, V>>>>,
   height: usize,
 }
 
@@ -33,8 +35,8 @@ impl<K: PartialEq + PartialOrd, V: PartialEq> Node<K, V> {
     self.height = if self.is_leaf() {
       1
     } else {
-      let l = self.left.as_ref().map_or(0, |node| node.height);
-      let r = self.right.as_ref().map_or(0, |node| node.height);
+      let l = self.left.as_ref().map_or(0, |node| node.borrow().height);
+      let r = self.right.as_ref().map_or(0, |node| node.borrow().height);
       1 + l.max(r)
     };
   }
@@ -43,8 +45,8 @@ impl<K: PartialEq + PartialOrd, V: PartialEq> Node<K, V> {
     if self.is_leaf() {
       0
     } else {
-      let l = self.left.as_ref().map_or(0, |node| node.height);
-      let r = self.right.as_ref().map_or(0, |node| node.height);
+      let l = self.left.as_ref().map_or(0, |node| node.borrow().height);
+      let r = self.right.as_ref().map_or(0, |node| node.borrow().height);
       (l as isize) - (r as isize)
     }
   }
