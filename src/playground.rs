@@ -3,6 +3,11 @@
 mod p {
   use std::{collections::HashMap, hash::Hash};
 
+  struct User {
+    id: u128,
+    name: String,
+  }
+
   struct Room<'a, K: Hash + Clone + Eq, V: Clone> {
     key_refs: Vec<&'a K>,
     map: HashMap<K, V>,

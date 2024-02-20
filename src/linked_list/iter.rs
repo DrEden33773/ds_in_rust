@@ -16,7 +16,7 @@ pub struct Iter<'a, T: Default> {
   prev: Option<NonNull<ListNode<T>>>,
   head: NonNull<ListNode<T>>,
   tail: NonNull<ListNode<T>>,
-  marker: PhantomData<&'a LinkedList<T>>,
+  marker: PhantomData<&'a ListNode<T>>,
 }
 
 impl<'a, T: Default> DoubleEndedIterator for Iter<'a, T> {
@@ -67,7 +67,7 @@ pub struct IterMut<'a, T: Default> {
   prev: Option<NonNull<ListNode<T>>>,
   head: NonNull<ListNode<T>>,
   tail: NonNull<ListNode<T>>,
-  marker: PhantomData<&'a mut LinkedList<T>>,
+  marker: PhantomData<&'a mut ListNode<T>>,
 }
 
 impl<'a, T: Default> DoubleEndedIterator for IterMut<'a, T> {

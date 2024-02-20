@@ -15,7 +15,7 @@ pub struct Iter<'a, T> {
   next_index: usize,
   prev_index: usize,
   is_head: bool,
-  marker: PhantomData<&'a Vector<T>>,
+  marker: PhantomData<&'a T>,
 }
 
 impl<'a, T> DoubleEndedIterator for Iter<'a, T> {
@@ -70,7 +70,7 @@ pub struct IterMut<'a, T> {
   next_index: usize,
   prev_index: usize,
   is_head: bool,
-  marker: PhantomData<&'a mut Vector<T>>,
+  marker: PhantomData<&'a mut T>,
 }
 
 impl<'a, T> DoubleEndedIterator for IterMut<'a, T> {
