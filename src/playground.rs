@@ -1,11 +1,21 @@
 #![allow(dead_code)]
 
 mod p {
-  use std::{collections::HashMap, hash::Hash};
+  use std::{
+    collections::HashMap,
+    fmt::{Debug, Display},
+    hash::Hash,
+  };
 
   struct User {
-    id: u128,
+    id: u64,
     name: String,
+  }
+
+  impl Display for User {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+      write!(f, "User {{ id: {}, name: {} }}", self.id, self.name)
+    }
   }
 
   struct Room<'a, K: Hash + Clone + Eq, V: Clone> {
@@ -54,5 +64,29 @@ mod p {
     for (i, e) in set.iter().enumerate() {
       println!("{}: {}", i, e);
     }
+  }
+
+  struct Wrapper<K: Hash, V>(HashMap<K, V>);
+
+  struct NamedWrapper<K: Hash, V> {
+    pub val: HashMap<K, V>,
+  }
+
+  fn receiver<K: Hash + Debug, V: Debug>(Wrapper(map): Wrapper<K, V>) {
+    println!("{:?}", map);
+  }
+
+  fn named_receiver<K: Hash + Debug, V: Debug>(NamedWrapper { val }: NamedWrapper<K, V>) {
+    println!("{:?}", val);
+  }
+
+  #[test]
+  fn test_receiver() {
+    let map = vec![("a", 1), ("b", 2), ("c", 3)]
+      .into_iter()
+      .collect::<HashMap<_, _>>();
+
+    receiver(Wrapper(map.clone()));
+    named_receiver(NamedWrapper { val: map });
   }
 }
